@@ -1,0 +1,2 @@
+*.pt !text !filter !merge !diff
+*.pth.tar !text !filter !merge !diff

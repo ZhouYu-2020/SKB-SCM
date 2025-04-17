@@ -1,0 +1,12 @@
+*.pt
+*.pth.tar
+checkpoints/
+dataset/
+model/
+prototypes/
+*.pt
+*.pth.tar
+/checkpoints
+/dataset
+/prototypes
+/models
