@@ -185,6 +185,7 @@ class PrototypeManager:
         
         return prototypes, prototypes_Kr
 
+
     def load_prototypes(self):
             """
             加载原型矩阵（评估阶段）
