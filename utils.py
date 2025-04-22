@@ -7,6 +7,7 @@ import random
 from skimage.metrics import peak_signal_noise_ratio as comp_psnr
 from skimage.metrics import structural_similarity as comp_ssim
 from skimage.metrics import mean_squared_error as comp_mse
+from scipy.spatial.distance import pdist, squareform
 
 
 def init_seeds(seed=42):
@@ -127,36 +128,82 @@ class PrototypeManager:
         self.mismatch_level = mismatch_level
         self.aid_alpha = aid_alpha  
 
+    # def generate_prototypes(self, encoder, dataloader, num_classes=10):
+    #     """
+    #     生成或加载原型矩阵
+    #     :param encoder: 用于提取特征的编码器
+    #     :param dataloader: 数据加载器
+    #     :param num_classes: 类别数量
+    #     :return: prototypes, prototypes_Kr
+    #     """
+    #     prototype_file = os.path.join(self.save_path, f'CIFAR_mis{self.mismatch_level:.3f}_aid{self.aid_alpha:.3f}_SKB.pt')
+    #     weight_file = os.path.join(self.save_path, f'CIFAR_mis{self.mismatch_level:.3f}_aid{self.aid_alpha:.3f}_SKB.pth.tar')
+
+    #     if os.path.exists(prototype_file):
+    #         prototypes = torch.load(prototype_file).to(self.device)
+    #         print(f"Loaded prototypes from {prototype_file}")
+    #     else:
+    #         # Load pretrained weights into the encoder if available
+    #         if os.path.exists(weight_file):
+    #             print(f"Loading pretrained weights from {weight_file}")
+    #             state_dict = torch.load(weight_file, map_location=self.device)
+    #             encoder.load_state_dict(state_dict, strict=False)
+
+    #         # 禁用任何原型融合：确保 encoder 输出原始特征
+    #         encoder.prototype = None
+    #         encoder.eval()
+    #         class_sum = None
+    #         class_count = None
+    #         with torch.no_grad():
+    #             for images, labels in dataloader:
+    #                 images, labels = images.to(self.device), labels.to(self.device)
+    #                 feat = encoder(images)  # Ensure encoder output matches decoder input dimensions
+    #                 feat = feat.view(feat.size(0), -1)
+    #                 if class_sum is None:
+    #                     feature_dim = feat.shape[1]
+    #                     class_sum = torch.zeros(num_classes, feature_dim).to(self.device)
+    #                     class_count = torch.zeros(num_classes).to(self.device)
+    #                 for i in range(num_classes):
+    #                     mask = (labels == i)
+    #                     if mask.sum() > 0:
+    #                         class_sum[i] += feat[mask].mean(dim=0)
+    #                         class_count[i] += 1
+
+    #         prototypes = class_sum / class_count.unsqueeze(1)
+    #         torch.save(prototypes, prototype_file)  # prototypes shape: [num_classes, feature_dim]
+    #         print(f"transmitter prototypes shape: {prototypes.shape}")
+    #         print(f"Saved transmitter prototypes to {prototype_file}")
+
+    #         # Save encoder weights
+    #         torch.save(encoder.state_dict(), weight_file)
+    #         print(f"Saved encoder weights to {weight_file}")
+        
+    #     if self.mismatch_level == 0.0:
+    #         prototypes_Kr = prototypes
+    #     else:
+    #         # Generate Kr with injected noise
+    #         prototypes_Kr = prototypes + self.mismatch_level * torch.randn_like(prototypes)
+        
+    #     return prototypes, prototypes_Kr
+
     def generate_prototypes(self, encoder, dataloader, num_classes=10):
         """
-        生成或加载原型矩阵
-        :param encoder: 用于提取特征的编码器
-        :param dataloader: 数据加载器
-        :param num_classes: 类别数量
-        :return: prototypes, prototypes_Kr
+        使用单独的深层网络生成原型矩阵
         """
         prototype_file = os.path.join(self.save_path, f'CIFAR_mis{self.mismatch_level:.3f}_aid{self.aid_alpha:.3f}_SKB.pt')
-        weight_file = os.path.join(self.save_path, f'CIFAR_mis{self.mismatch_level:.3f}_aid{self.aid_alpha:.3f}_SKB.pth.tar')
 
         if os.path.exists(prototype_file):
             prototypes = torch.load(prototype_file).to(self.device)
             print(f"Loaded prototypes from {prototype_file}")
         else:
-            # Load pretrained weights into the encoder if available
-            if os.path.exists(weight_file):
-                print(f"Loading pretrained weights from {weight_file}")
-                state_dict = torch.load(weight_file, map_location=self.device)
-                encoder.load_state_dict(state_dict, strict=False)
-
-            # 禁用任何原型融合：确保 encoder 输出原始特征
-            encoder.prototype = None
+            # 使用深层网络生成原型矩阵
             encoder.eval()
             class_sum = None
             class_count = None
             with torch.no_grad():
                 for images, labels in dataloader:
                     images, labels = images.to(self.device), labels.to(self.device)
-                    feat = encoder(images)  # Ensure encoder output matches decoder input dimensions
+                    feat = encoder(images)  # 使用深层网络提取特征
                     feat = feat.view(feat.size(0), -1)
                     if class_sum is None:
                         feature_dim = feat.shape[1]
@@ -167,22 +214,16 @@ class PrototypeManager:
                         if mask.sum() > 0:
                             class_sum[i] += feat[mask].mean(dim=0)
                             class_count[i] += 1
-
+    
             prototypes = class_sum / class_count.unsqueeze(1)
-            torch.save(prototypes, prototype_file)  # prototypes shape: [num_classes, feature_dim]
-            print(f"transmitter prototypes shape: {prototypes.shape}")
-            print(f"Saved transmitter prototypes to {prototype_file}")
-
-            # Save encoder weights
-            torch.save(encoder.state_dict(), weight_file)
-            print(f"Saved encoder weights to {weight_file}")
-        
+            torch.save(prototypes, prototype_file)  # 保存原型矩阵
+            print(f"Saved prototypes to {prototype_file}")
+    
         if self.mismatch_level == 0.0:
             prototypes_Kr = prototypes
         else:
-            # Generate Kr with injected noise
             prototypes_Kr = prototypes + self.mismatch_level * torch.randn_like(prototypes)
-        
+    
         return prototypes, prototypes_Kr
 
 
@@ -204,3 +245,59 @@ class PrototypeManager:
             return prototypes, prototypes_Kr
 
 
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+
+def visualize_prototypes(prototypes, num_classes, method='tsne', save_path='./results/', file_name='prototypes.png'):
+    """
+    可视化原型矩阵并保存到指定路径
+    :param prototypes: 原型矩阵，形状为 [num_classes, feature_dim]
+    :param num_classes: 类别数量
+    :param method: 降维方法 ('tsne' 或 'pca')
+    :param save_path: 保存图片的路径
+    :param file_name: 保存图片的文件名
+    """
+    prototypes = prototypes.cpu().numpy()  # 转换为 NumPy 数组
+
+    if method == 'tsne':
+        reducer = TSNE(n_components=2, perplexity=min(5, num_classes - 1), random_state=42)
+    elif method == 'pca':
+        reducer = PCA(n_components=2)
+    else:
+        raise ValueError("Invalid method. Use 'tsne' or 'pca'.")
+
+    reduced_prototypes = reducer.fit_transform(prototypes)  # 降维
+
+    # 绘制散点图
+    plt.figure(figsize=(8, 6))
+    for i in range(num_classes):
+        plt.scatter(reduced_prototypes[i, 0], reduced_prototypes[i, 1], label=f'Class {i}')
+    plt.title(f'Prototype Visualization ({method.upper()})')
+    plt.xlabel('Dimension 1')
+    plt.ylabel('Dimension 2')
+    plt.legend()
+    plt.grid(True)
+
+    # 确保保存路径存在
+    os.makedirs(save_path, exist_ok=True)
+
+    # 保存图片
+    save_file = os.path.join(save_path, file_name)
+    plt.savefig(save_file, dpi=300)
+    print(f"Prototype visualization saved to {save_file}")
+
+    # 关闭绘图
+    plt.close()
+
+from torchvision.models import resnet18
+import torch.nn as nn
+
+class DeepEncoder(nn.Module):
+    def __init__(self):
+        super(DeepEncoder, self).__init__()
+        self.resnet = resnet18(pretrained=True)  # 使用预训练的 ResNet18
+        self.resnet.fc = nn.Identity()  # 移除最后的分类层，保留特征提取部分
+
+    def forward(self, x):
+        return self.resnet(x)

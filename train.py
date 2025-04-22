@@ -9,6 +9,10 @@ from evaluation import EVAL
 from utils import save_checkpoint, PSNR, PrototypeManager
 from modules import Encoder
 
+from utils import visualize_prototypes, DeepEncoder
+
+
+
 
 def train(config, net, train_iter, test_iter, device):
     learning_rate = config.lr
@@ -34,7 +38,7 @@ def train(config, net, train_iter, test_iter, device):
         aid_alpha=config.aid_alpha)
 
     # 生成或加载原型矩阵
-    encoder_for_proto = Encoder(config).to(device)
+    encoder_for_proto = DeepEncoder().to(device)
     prototypes, prototypes_Kr = prototype_manager.generate_prototypes(
         encoder=encoder_for_proto,
         dataloader=train_iter,
@@ -46,6 +50,12 @@ def train(config, net, train_iter, test_iter, device):
         net.decoder_recon.prototype = prototypes_Kr   # 解码器（重建）使用注入失配的原型
         net.decoder_class.prototype = prototypes_Kr   # 解码器（分类）同样使用
     print("Prototype matrices have been set in Encoder and Decoders.")
+
+
+    # 可视化原型矩阵
+    visualize_prototypes(prototypes, num_classes=10, method='tsne', save_path=config.result_path, file_name='prototypes_tsne.png')
+    print(f"Prototype matrix mean: {prototypes.mean().item():.4f}, std: {prototypes.std().item():.4f}")
+    print(f"Prototype matrix min: {prototypes.min().item():.4f}, max: {prototypes.max().item():.4f}")
 
 
     best_acc = 0

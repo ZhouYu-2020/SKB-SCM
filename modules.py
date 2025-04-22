@@ -98,9 +98,10 @@ class Encoder(nn.Module):
             # flatten z4 至 [batch, feature_dim]
             f = z4.view(z4.size(0), -1)
             # self.prototype 应为 [num_classes, feature_dim]，确保维度匹配
-            attn_scores = torch.matmul(f, self.prototype.t())  # [batch, num_classes]
-            attn_weights = F.softmax(attn_scores, dim=-1) # [batch, num_classes]
-            proto_info = torch.matmul(attn_weights, self.prototype)  # [batch, feature_dim]
+            prototype_mapped = torch.matmul(self.prototype, torch.randn(self.prototype.size(1), f.size(1)).to(f.device))
+            attn_scores = torch.matmul(f, prototype_mapped.t())  # [batch, num_classes]
+            attn_weights = torch.softmax(attn_scores, dim=-1) # [batch, num_classes]
+            proto_info = torch.matmul(attn_weights, prototype_mapped)  # [batch, feature_dim]
             f = f + self.config.aid_alpha * proto_info
             # 返回增强后的特征向量，此处直接返回 flattened 形式（network.py 会 reshape）
             return f
@@ -168,7 +169,7 @@ class Decoder_Recon(nn.Module):
 
             # Step 2: 计算注意力权重
             attn_scores = torch.matmul(z, prototype_mapped.t())  # [batch_size, num_classes]
-            attn_weights = F.softmax(attn_scores, dim=-1)  # [batch_size, num_classes]
+            attn_weights = torch.softmax(attn_scores, dim=-1)  # [batch_size, num_classes]
 
             # Step 3: 加权融合
             # 根据注意力权重加权 prototype_mapped，得到与 z 形状匹配的特征

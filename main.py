@@ -55,9 +55,9 @@ def main(config):
 
     if config.load_checkpoint:
         model_name = '/{}/'.format(config.mod_method) + \
-                     'CIFAR_SNR{:.3f}_Trans{:d}_{}_mis{:.3f}__aid{:3.f}_SKB.pth.tar'.format(
-                         config.snr_train, config.channel_use, 
-                         config.mod_method, config.mismatch_level,config.aid_alpha)
+                     'CIFAR_SNR{:.3f}_Trans{:d}_{}_mis{:.3f}_aid{:.3f}_SKB.pth.tar'.format(
+                config.snr_train, config.channel_use, 
+                config.mod_method,config.mismatch_level,config.aid_alpha)
         net.load_state_dict(torch.load('./checkpoints' + model_name, map_location=torch.device('cpu')))
 
     if config.mode == 'train':
