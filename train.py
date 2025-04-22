@@ -42,7 +42,8 @@ def train(config, net, train_iter, test_iter, device):
     prototypes, prototypes_Kr = prototype_manager.generate_prototypes(
         encoder=encoder_for_proto,
         dataloader=train_iter,
-        num_classes=10
+        num_classes=10,
+        pretrained_model_path = config.pretrained_model_path,
     )
     # 将生成的原型矩阵赋值给模型中 Encoder 和 Decoder
     with torch.no_grad():
@@ -109,7 +110,7 @@ def train(config, net, train_iter, test_iter, device):
             file_name = config.model_path + '/{}/'.format(config.mod_method)
             if not os.path.exists(file_name):
                 os.makedirs(file_name)
-            model_name = 'CIFAR_SNR{:.3f}_Trans{:d}_{}_mis{:.3f}_aid{:.3f}_SKB.pth.tar'.format(
+            model_name = 'CIFAR_SNR{:.3f}_Trans{:d}_{}_mis{:.3f}_aid{:.5f}_SKB.pth.tar'.format(
                 config.snr_train, config.channel_use, 
                 config.mod_method,config.mismatch_level,config.aid_alpha)
             save_checkpoint(net.state_dict(), file_name + model_name)

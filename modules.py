@@ -73,11 +73,17 @@ class Encoder(nn.Module):
         self.layer3 = self.make_layer(ResidualBlock, 256, 2, stride=2)
         if config.mod_method == 'bpsk':
             self.layer4 = self.make_layer(ResidualBlock, config.channel_use, 2, stride=2)
+            # 新增：升维线性层
+            self.expand_dim = nn.Linear(512, config.channel_use * 4 * 4)
         else:
             self.layer4 = self.make_layer(ResidualBlock, config.channel_use * 2, 2, stride=2)
+            # 新增：升维线性层
+            self.expand_dim = nn.Linear(512, config.channel_use * 4 * 4 * 2)
         
         # 新增：知识库原型矩阵，初始为 None
         self.prototype = prototype  
+    
+
 
     def make_layer(self, block, channels, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)  # strides=[1,1]
@@ -97,8 +103,8 @@ class Encoder(nn.Module):
         if self.prototype is not None:
             # flatten z4 至 [batch, feature_dim]
             f = z4.view(z4.size(0), -1)
-            # self.prototype 应为 [num_classes, feature_dim]，确保维度匹配
-            prototype_mapped = torch.matmul(self.prototype, torch.randn(self.prototype.size(1), f.size(1)).to(f.device))
+            # 使用线性层将原型矩阵升维到与 f 匹配的维度
+            prototype_mapped = self.expand_dim(self.prototype)  # [num_classes, feature_dim]
             attn_scores = torch.matmul(f, prototype_mapped.t())  # [batch, num_classes]
             attn_weights = torch.softmax(attn_scores, dim=-1) # [batch, num_classes]
             proto_info = torch.matmul(attn_weights, prototype_mapped)  # [batch, feature_dim]
@@ -151,6 +157,8 @@ class Decoder_Recon(nn.Module):
 
         self.conv3 = nn.Sequential(
             nn.Conv2d(32, 3, 1, 1, 0))
+        
+        self.reduce_dim = nn.Linear(512, input_channel * 4 * 4 )  # 降维线性层，将原型矩阵降维到与 x 匹配的维度
 
     def make_layer(self, block, channels, num_blocks, stride):
         strides = [stride] + [1] * (num_blocks - 1)  # strides=[1,1]
@@ -165,7 +173,7 @@ class Decoder_Recon(nn.Module):
         # 如果设置了 prototype，则融合先验知识
         if self.prototype is not None:
             # Step 1: 将 prototypes 降维到与 z 匹配的维度
-            prototype_mapped = torch.matmul(self.prototype, torch.randn(self.prototype.size(1), z.size(1)).to(z.device))
+            prototype_mapped = self.reduce_dim(self.prototype)
 
             # Step 2: 计算注意力权重
             attn_scores = torch.matmul(z, prototype_mapped.t())  # [batch_size, num_classes]
@@ -213,7 +221,8 @@ class Decoder_Class(nn.Module):
             nn.PReLU(),
         )
         self.last_fc = nn.Linear(self.layer_width * 4, 10)
-        self.fusion_layer = nn.Linear(self.layer_width * 4 + 10, self.layer_width * 4)  # 将拼接后的特征映射回原始维度
+        # 降维线性层，将原型矩阵降维到与 x 匹配的维度
+        self.reduce_dim = nn.Linear(512, self.layer_width * 4)
 
     def forward(self, z):
         x1 = self.fc_spinal_layer1(z[:, 0:self.Half_width])
@@ -226,15 +235,18 @@ class Decoder_Class(nn.Module):
 
         # 如果设置了 prototype，则利用其辅助计算分类信息
         if self.prototype is not None:
-            # Step 1: 将 prototypes 降维到与 z 匹配的维度
-            prototype_mapped = torch.matmul(self.prototype, torch.randn(self.prototype.size(1), z.size(1)).to(z.device))  # [num_classes, feature_dim]
+                        # Step 1: 将原型矩阵降维到与 x 匹配的维度
+            prototype_reduced = self.reduce_dim(self.prototype)  # [num_classes, layer_width * 4]
 
-            # Step 2: 计算与 z 的点积
-            kb = torch.matmul(z, prototype_mapped.t())  # [batch_size, num_classes]
+            # Step 2: 计算注意力权重
+            attn_scores = torch.matmul(x, prototype_reduced.t())  # [batch_size, num_classes]
+            attn_weights = torch.softmax(attn_scores, dim=-1)  # [batch_size, num_classes]
 
-            # Step 3: 拼接 x 和 kb
-            x = torch.cat([x, kb], dim=1)  # 拼接后维度为 [batch_size, feature_dim + num_classes]
-            x = self.fusion_layer(x)  # 通过线性层将拼接后的特征转换为原始的特征维度
+            # Step 3: 根据注意力权重加权原型矩阵
+            proto_info = torch.matmul(attn_weights, prototype_reduced)  # [batch_size, layer_width * 4]
+
+            # Step 4: 将加权后的原型信息与 x 融合
+            x = x + self.config.aid_alpha * proto_info  # 融合超参数 aid_alpha 控制融合强度
 
         y_class = self.last_fc(x)
         return y_class

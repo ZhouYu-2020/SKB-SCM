@@ -55,10 +55,10 @@ def main(config):
 
     if config.load_checkpoint:
         model_name = '/{}/'.format(config.mod_method) + \
-                     'CIFAR_SNR{:.3f}_Trans{:d}_{}_mis{:.3f}_aid{:.3f}_SKB.pth.tar'.format(
+                     'CIFAR_SNR{:.3f}_Trans{:d}_{}_mis{:.3f}_aid{:.5f}_SKB.pth.tar'.format(
                 config.snr_train, config.channel_use, 
                 config.mod_method,config.mismatch_level,config.aid_alpha)
-        net.load_state_dict(torch.load('./checkpoints' + model_name, map_location=torch.device('cpu')))
+        net.load_state_dict(torch.load('./models' + model_name, map_location=torch.device('cpu')))
 
     if config.mode == 'train':
         print("Training with the modulation scheme {}.".format(config.mod_method))
@@ -104,17 +104,24 @@ if __name__ == '__main__':
     parser.add_argument('--result_path', type=str, default='./results')
     parser.add_argument('--dataset_path', type=str, default='./dataset')
     parser.add_argument('--prototypes_path', type=str, default='./prototypes')
+    parser.add_argument('--pretrained_model_path', type=str, 
+                        default='./prototypes/pretrained_models/resnet18_cifar10_ult.pt')
 
     config = parser.parse_args()
 
-    config.mode='test'
+    config.mode='train'
+    config.load_checkpoint=0 # 是否加载预训练模型
+    config.train_iters=50  # 训练迭代次数
+
+    config.mismatch_level=0 # 不匹配值
+    config.aid_alpha=0.001  # 背景知识的融合超参数
+    config.tradeoff_lambda=70  # 这个值和论文中的 lambda 取值一致，有个取值表格。
+    
     config.mod_method='bpsk'
-    config.mismatch_level=0.0
-    config.aid_alpha=0.001
     config.snr_train=18
     config.snr_test=18
-    config.load_checkpoint=1
 
     mischandler(config)
     main(config)
+
 

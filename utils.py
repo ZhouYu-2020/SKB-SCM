@@ -186,16 +186,22 @@ class PrototypeManager:
         
     #     return prototypes, prototypes_Kr
 
-    def generate_prototypes(self, encoder, dataloader, num_classes=10):
+    def generate_prototypes(self, encoder, dataloader, num_classes=10,pretrained_model_path=None):
         """
         使用单独的深层网络生成原型矩阵
         """
-        prototype_file = os.path.join(self.save_path, f'CIFAR_mis{self.mismatch_level:.3f}_aid{self.aid_alpha:.3f}_SKB.pt')
+        prototype_file = os.path.join(self.save_path, f'CIFAR_mis{self.mismatch_level:.3f}_aid{self.aid_alpha:.5f}_SKB.pt')
 
         if os.path.exists(prototype_file):
             prototypes = torch.load(prototype_file).to(self.device)
             print(f"Loaded prototypes from {prototype_file}")
         else:
+            # 加载预训练模型参数
+            if pretrained_model_path is not None:
+                print(f"Loading pretrained model from {pretrained_model_path}")
+                state_dict = torch.load(pretrained_model_path, map_location=self.device)
+                encoder.load_state_dict(state_dict, strict=False)
+
             # 使用深层网络生成原型矩阵
             encoder.eval()
             class_sum = None
@@ -232,7 +238,7 @@ class PrototypeManager:
             加载原型矩阵（评估阶段）
             :return: prototypes, prototypes_Kr
             """
-            prototype_file = os.path.join(self.save_path, f'CIFAR_mis{self.mismatch_level:.3f}_aid{self.aid_alpha:.3f}_SKB.pt')
+            prototype_file = os.path.join(self.save_path, f'CIFAR_mis{self.mismatch_level:.3f}_aid{self.aid_alpha:.5f}_SKB.pt')
             assert os.path.exists(prototype_file), f"Prototype file {prototype_file} does not exist!"
             prototypes = torch.load(prototype_file).to(self.device)
             print(f"Loaded prototypes from {prototype_file}")
@@ -296,7 +302,7 @@ import torch.nn as nn
 class DeepEncoder(nn.Module):
     def __init__(self):
         super(DeepEncoder, self).__init__()
-        self.resnet = resnet18(pretrained=True)  # 使用预训练的 ResNet18
+        self.resnet = resnet18(pretrained=False)  # 使用预训练的 ResNet18
         self.resnet.fc = nn.Identity()  # 移除最后的分类层，保留特征提取部分
 
     def forward(self, x):
