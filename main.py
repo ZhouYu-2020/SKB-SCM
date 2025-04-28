@@ -54,8 +54,8 @@ def main(config):
 
     if config.load_checkpoint:
         model_name = '/{}/'.format(config.mod_method) + \
-                     'CIFAR_SNR{:.3f}_Trans{:d}_{}_mis{:.3f}_aid{:.5f}_SKB.pth.tar'.format(
-                config.snr_train, config.channel_use,
+                     'CIFAR_SNR{:.3f}_lam{:.2f}_Trans{:d}_{}_mis{:.3f}_aid{:.5f}_SKB.pth.tar'.format(
+                config.snr_train, config.tradeoff_lambda, config.channel_use,
                 config.mod_method,config.mismatch_level,config.aid_alpha)
         net.load_state_dict(torch.load('./models' + model_name, map_location=torch.device(device)))
 
@@ -108,18 +108,18 @@ if __name__ == '__main__':
 
     config = parser.parse_args()
 
-    config.mode='test'
-    config.load_checkpoint=1 # 是否加载预训练模型
+    config.mode='train'
+    config.load_checkpoint=0 # 是否加载预训练模型
     config.train_iters=50  # 训练迭代次数
 
     config.mismatch_level=0 # 不匹配值
     config.aid_alpha=0  # 背景知识的融合超参数
-    config.tradeoff_lambda=70  # 这个值和论文中的 lambda 取值一致，有个取值表格。
+    config.tradeoff_lambda=0.5  # 这个值和论文中的 lambda 取值一致，有个取值表格。
 
 
     config.mod_method='bpsk'
-    config.snr_train=12
-    config.snr_test=12
+    config.snr_train=-18
+    config.snr_test=-18
 
     mischandler(config)
     main(config)
