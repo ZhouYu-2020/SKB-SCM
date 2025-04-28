@@ -111,7 +111,7 @@ def train(config, net, train_iter, test_iter, device):
             if not os.path.exists(file_name):
                 os.makedirs(file_name)
             model_name = 'CIFAR_SNR{:.3f}_Trans{:d}_{}_mis{:.3f}_aid{:.5f}_SKB.pth.tar'.format(
-                config.snr_train, config.channel_use, 
+                    config.snr_train, config.channel_use,
                 config.mod_method,config.mismatch_level,config.aid_alpha)
             save_checkpoint(net.state_dict(), file_name + model_name)
             best_acc = acc_num
@@ -122,8 +122,9 @@ def train(config, net, train_iter, test_iter, device):
     if not os.path.exists(file_name):
         os.makedirs(file_name)
 
-    result_name = 'CIFAR_SNR{:.3f}_Trans{:d}_{}.csv'.format(
-            config.snr_train, config.channel_use, config.mod_method)
+    result_name = 'CIFAR_SNR{:.3f_Trans{:d}_{}_mis{:.3f}_aid{:.5f}_SKB.csv'.format(
+                config.snr_train, config.channel_use,
+                config.mod_method,config.mismatch_level,config.aid_alpha)
     data.to_csv(file_name + result_name, index=False, header=False)
 
 
