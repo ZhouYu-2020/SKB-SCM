@@ -112,10 +112,9 @@ if __name__ == '__main__':
     config.load_checkpoint=0 # 是否加载预训练模型
     config.train_iters=50  # 训练迭代次数
 
-    config.mismatch_level=0 # 不匹配值
-    config.aid_alpha=0  # 背景知识的融合超参数
-    config.tradeoff_lambda=0.5  # 这个值和论文中的 lambda 取值一致，有个取值表格。
-
+    config.tradeoff_lambda = 0.5  # 这个值和论文中的 lambda 取值一致，有个取值表格。
+    config.mismatch_level=0.2 # 不匹配值
+    config.aid_alpha= 2  # 背景知识的融合超参数
 
     config.mod_method='bpsk'
     config.snr_train=-18
