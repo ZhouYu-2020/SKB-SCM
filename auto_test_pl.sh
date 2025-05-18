@@ -21,7 +21,7 @@ AID_VALUES=(0.001 0.005 0.01 0.05 0.1 0.2 0.4 0.6 0.8 1 1.5 2 2.5 3 3.5 4 4.5 5)
 MISMATCH_VALUES=(0.0 0.2 0.4 0.6 0.8 1.0) # 不同的 mismatch_level 值
 
 # 定义每个 SNR 对应的 tradeoff_lambda 值
-TRADEOFF_LAMBDA_VALUES=(70 70 70 30 20 2 0.5)
+TRADEOFF_LAMBDA_VALUES=(0.5 2 20 30 70 70 70)
 
 # 最大并行任务数
 MAX_JOBS=4
